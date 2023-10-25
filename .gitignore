@@ -6,6 +6,7 @@ bash.sh
 kohler/cache/*
 *.ipynb
 .
+*.out
 *.log
 *wandb*
 *.DS_Store*
