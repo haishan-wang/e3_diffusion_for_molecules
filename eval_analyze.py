@@ -1,6 +1,8 @@
 # Rdkit import should be first, do not move it
 try:
     from rdkit import Chem
+    from rdkit import RDLogger
+    RDLogger.DisableLog('rdApp.*')
 except ModuleNotFoundError:
     pass
 import utils
@@ -61,6 +63,24 @@ def analyze_and_save(args, eval_args, device, generative_model,
                 node_mask=node_mask)
 
     molecules = {key: torch.cat(molecules[key], dim=0) for key in molecules}
+    
+    smiles_list = analyze_stability_for_molecules(
+        molecules, dataset_info, need_record=True)
+    print('='*20, '\n', smiles_list, '\n', '='*20)
+    
+    
+
+    model_name = 'EDM'
+    data_name = 'qm9'    
+    save_root = '/scratch/cs/gnnflows/Heterophily_moflow/evaluation/Smiles'
+    path = os.path.join(save_root, model_name)
+    os.makedirs(path, exist_ok=True)
+    file_path = os.path.join(path, f'SMILES_{model_name}_{data_name}_seed{eval_args.seed}.txt')
+    with open(file_path, 'w') as f:
+        f.write( '\n'.join(smiles_list))
+    
+    
+    
     stability_dict, rdkit_metrics = analyze_stability_for_molecules(
         molecules, dataset_info)
 
@@ -119,7 +139,8 @@ def main():
                         help='Specify model path')
     parser.add_argument('--save_to_xyz', type=eval, default=False,
                         help='Should save samples to xyz files.')
-
+    parser.add_argument('--seed', type=int, default=0,
+                        help='random seed')
     eval_args, unparsed_args = parser.parse_known_args()
 
     assert eval_args.model_path is not None
@@ -139,7 +160,7 @@ def main():
     dtype = torch.float32
     utils.create_folders(args)
     print(args)
-
+    torch.manual_seed(eval_args.seed)
     # Retrieve QM9 dataloaders
     dataloaders, charge_scale = dataset.retrieve_dataloaders(args)
 
@@ -169,29 +190,29 @@ def main():
     else:
         print("Install rdkit roolkit to obtain Validity, Uniqueness, Novelty")
 
-    # In GEOM-Drugs the validation partition is named 'val', not 'valid'.
-    if args.dataset == 'geom':
-        val_name = 'val'
-        num_passes = 1
-    else:
-        val_name = 'valid'
-        num_passes = 5
+    # # In GEOM-Drugs the validation partition is named 'val', not 'valid'.
+    # if args.dataset == 'geom':
+    #     val_name = 'val'
+    #     num_passes = 1
+    # else:
+    #     val_name = 'valid'
+    #     num_passes = 5
 
-    # Evaluate negative log-likelihood for the validation and test partitions
-    val_nll = test(args, generative_model, nodes_dist, device, dtype,
-                   dataloaders[val_name],
-                   partition='Val')
-    print(f'Final val nll {val_nll}')
-    test_nll = test(args, generative_model, nodes_dist, device, dtype,
-                    dataloaders['test'],
-                    partition='Test', num_passes=num_passes)
-    print(f'Final test nll {test_nll}')
+    # # Evaluate negative log-likelihood for the validation and test partitions
+    # val_nll = test(args, generative_model, nodes_dist, device, dtype,
+    #                dataloaders[val_name],
+    #                partition='Val')
+    # print(f'Final val nll {val_nll}')
+    # test_nll = test(args, generative_model, nodes_dist, device, dtype,
+    #                 dataloaders['test'],
+    #                 partition='Test', num_passes=num_passes)
+    # print(f'Final test nll {test_nll}')
 
-    print(f'Overview: val nll {val_nll} test nll {test_nll}', stability_dict)
-    with open(join(eval_args.model_path, 'eval_log.txt'), 'w') as f:
-        print(f'Overview: val nll {val_nll} test nll {test_nll}',
-              stability_dict,
-              file=f)
+    # print(f'Overview: val nll {val_nll} test nll {test_nll}', stability_dict)
+    # with open(join(eval_args.model_path, 'eval_log.txt'), 'w') as f:
+    #     print(f'Overview: val nll {val_nll} test nll {test_nll}',
+    #           stability_dict,
+    #           file=f)
 
 
 if __name__ == "__main__":

@@ -320,7 +320,7 @@ def main_check_stability(remove_h: bool, batch_size=32):
         test_validity_for(test_loader)
 
 
-def analyze_stability_for_molecules(molecule_list, dataset_info):
+def analyze_stability_for_molecules(molecule_list, dataset_info, need_record = False):
     one_hot = molecule_list['one_hot']
     x = molecule_list['x']
     node_mask = molecule_list['node_mask']
@@ -361,7 +361,10 @@ def analyze_stability_for_molecules(molecule_list, dataset_info):
         'mol_stable': fraction_mol_stable,
         'atm_stable': fraction_atm_stable,
     }
-
+    if need_record:
+        metrics = BasicMolecularMetrics(dataset_info)
+        smiles_list = metrics.construct_smiles(processed_list)
+        return smiles_list
     if use_rdkit:
         metrics = BasicMolecularMetrics(dataset_info)
         rdkit_metrics = metrics.evaluate(processed_list)
@@ -370,6 +373,19 @@ def analyze_stability_for_molecules(molecule_list, dataset_info):
     else:
         return validity_dict, None
 
+
+
+# def construct_mol(generated):
+#     for graph in generated:
+#         mol = build_molecule(*graph, self.dataset_info)
+#         smiles = mol2smiles(mol)
+#         if smiles is not None:
+#             mol_frags = Chem.rdmolops.GetMolFrags(mol, asMols=True)
+#             largest_mol = max(mol_frags, default=mol, key=lambda m: m.GetNumAtoms())
+#             smiles = mol2smiles(largest_mol)
+#             valid.append(smiles)
+
+#     return valid, len(valid) / len(generated)
 
 def analyze_node_distribution(mol_list, save_path):
     hist_nodes = Histogram_discrete('Histogram # nodes (stable molecules)')

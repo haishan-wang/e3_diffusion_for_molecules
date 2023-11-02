@@ -99,6 +99,24 @@ class BasicMolecularMetrics(object):
 
         return valid, len(valid) / len(generated)
 
+    def construct_smiles(self, generated):
+        smile_list = []
+        for graph in generated:
+            mol = build_molecule(*graph, self.dataset_info)
+            smiles = mol2smiles(mol)
+            if smiles is not None:
+                mol_frags = Chem.rdmolops.GetMolFrags(mol, asMols=True)
+                largest_mol = max(mol_frags, default=mol, key=lambda m: m.GetNumAtoms())
+                smiles = mol2smiles(largest_mol)
+                # print('1st', smiles)
+                smiles = Chem.MolToSmiles(Chem.MolFromSmiles(smiles) )
+                smile_list.append(smiles)
+                # print('2nd',smiles)
+            else: # I need the useless smiles for 
+                # print('None')
+                smile_list.append(Chem.MolToSmiles(mol))
+        return smile_list
+    
     def compute_uniqueness(self, valid):
         """ valid: list of SMILES strings."""
         return list(set(valid)), len(set(valid)) / len(valid)
